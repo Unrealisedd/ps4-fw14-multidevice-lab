@@ -1,0 +1,147 @@
+FW14 MULTI-DEVICE ACCESS HARNESS
+================================
+
+PURPOSE
+-------
+A persistent local gateway may test multiple authorized FW14 consoles, one at a time. The gateway itself is reusable. Every access code, child exploit run, and device boot remains one-shot.
+
+The existing hardware-proven dual-map child is launched unchanged on port 8080. The gateway runs on port 80, atomically redeems a locally issued code, binds it to one configured device ID and IPv4, creates an isolated evidence directory, starts the child, and redirects that console to the child's fresh intent URL.
+
+No code-generation or administrative endpoint exists on the network service. Plaintext codes are printed once by the local CLI and only their domain-separated SHA-256 values are stored.
+
+REVIEWED HEN PREREQUISITE
+-------------------------
+The public repository does not redistribute GoldHEN. Before gateway use, stage a legally obtained reviewed image as hen.bin at the repository root, or pass its absolute path to --hen. The expected file is 562240 bytes with SHA-256 29ec095fbede651e29954de43411599093138791e62105aaee6fdced58edec06.
+
+Do not substitute another payload. The check and serve commands fail closed unless --hen-sha256 matches the file. HEN_EXPECTED_SHA256.txt records the public pin; THIRD_PARTY_NOTICES.md links the official project and explains the licensing boundary.
+
+SAFE RELEASE CHECK
+------------------
+From the package directory:
+
+  python -B verify_release_manifest.py --root .
+
+  python -B serve_fw14_hx1400_access.py check --root . --hen hen.bin --hen-sha256 29ec095fbede651e29954de43411599093138791e62105aaee6fdced58edec06
+
+The manifest command must report MANIFEST PASS. After hen.bin is staged, the gateway check must report registryMutated=false, serverConstructed=false, and bound=false.
+
+STATE LAYOUT
+------------
+Create one mutable state directory outside the static package directory. Example:
+
+  C:\FW14-Lab-State\
+    access.sqlite3
+    runs\
+      gateway.lock
+      gateway-events.jsonl
+      devices\<hashed-device-id>\boot-tombstone.json
+      runs\<redemption-id>\...
+
+The gateway refuses mutable paths beneath the static root. Preserve the SQLite registry, gateway-events.jsonl, and every per-run directory as evidence. The OS-held gateway.lock permits exactly one gateway process for a runs root.
+Legacy registry migration is fail-closed: a durable cleanup-pending marker remains until secure deletion, VACUUM, and WAL truncation finish. Startup retries an interrupted cleanup before any registry command proceeds.
+
+
+START THE REUSABLE LOCAL GATEWAY
+--------------------------------
+Example lab network:
+
+  operator host: 192.168.1.83
+  authorized console subnet: 192.168.1.0/24
+
+Run from the static package directory:
+
+  python -B serve_fw14_hx1400_access.py serve --host 192.168.1.83 --public-host 192.168.1.83 --port 80 --child-port 8080 --client-cidr 192.168.1.0/24 --registry C:\FW14-Lab-State\access.sqlite3 --runs-root C:\FW14-Lab-State\runs --root . --hen hen.bin --hen-sha256 29ec095fbede651e29954de43411599093138791e62105aaee6fdced58edec06 --trusted-isolated-network
+
+Leave this terminal open. The READY line prints the short local URL:
+
+  http://192.168.1.83/
+
+Only one child run is active at a time. A second console receives a wait response without consuming its code.
+
+ISSUE ONE CODE LOCALLY
+----------------------
+Use a stable operator-assigned device ID and the exact IPv4 shown by that console after boot:
+
+  python -B serve_fw14_hx1400_access.py issue --registry C:\FW14-Lab-State\access.sqlite3 --runs-root C:\FW14-Lab-State\runs --device-id lab-ps4-02 --expected-client 192.168.1.107 --ttl-minutes 30
+
+The command prints one 16-symbol code such as XXXX-XXXX-XXXX-XXXX. It is displayed once and never persisted in plaintext. Issue separate codes for separate devices.
+
+An exact IPv4 has one canonical device ID. A second or mistyped ID cannot claim an already registered address. Move a device to a new address only through the exact-run cold-reboot confirmation below.
+
+DEVICE FLOW
+-----------
+1. Fully cold-boot the console.
+2. Confirm its current IPv4 matches the issued code.
+3. Open http://192.168.1.83/ in the FW14 browser.
+4. Enter the one-time code.
+5. The gateway consumes the code and redirects to the byte-pinned child page.
+6. Read and accept the child page's risk statement, then click exactly once.
+7. Never refresh, go back, or retry on that boot.
+8. Record whether GoldHEN visibly loaded; the child protocol proves dispatch but intentionally cannot observe runtime readiness.
+
+After a terminal child state, the gateway keeps the child alive for a bounded two-second event/response flush, then stops it and preserves its evidence. It accepts result.json only when state.json is completed and carries the matching result digest, status, and code; aborted and commit-uncertain states fail promptly without occupying the slot until timeout.
+
+STATUS WITHOUT PLAINTEXT CODES
+------------------------------
+
+  python -B serve_fw14_hx1400_access.py status --registry C:\FW14-Lab-State\access.sqlite3
+
+Status shows expiry/state, canonical device bindings, device locks, run IDs, evidence directories, and result codes. It never stores or prints any access-code symbol.
+
+IMMEDIATE FAILURE OR CRASH DIAGNOSIS
+------------------------------------
+
+Show the newest run:
+
+  python -B serve_fw14_hx1400_access.py diagnose --registry C:\FW14-Lab-State\access.sqlite3 --runs-root C:\FW14-Lab-State\runs
+
+Or select one exact run/redemption ID:
+
+  python -B serve_fw14_hx1400_access.py diagnose --registry C:\FW14-Lab-State\access.sqlite3 --runs-root C:\FW14-Lab-State\runs --run-id <exact-32-character-id>
+
+The report identifies the last server phase, last browser telemetry tag, terminal result code, child exit boundary, malformed/truncated evidence, and SHA-256/size of every available artifact. Each terminal run also gets diagnostic.json. gateway-events.jsonl records redemption, child readiness, claim, terminal state, restart recovery, and failure boundaries.
+
+Diagnostics never include plaintext access codes, child intent/challenge values, kernel addresses, or browser telemetry detail. A failureBoundary names the last durable observation; it is evidence for investigation, not an invented root cause.
+
+If the gateway is killed, its parent pipe guard terminates the child. On the next gateway start, an unfinished registry row becomes gateway-recovered/GATEWAY_RESTARTED and receives a diagnostic record. Inspect and preserve that run before issuing another code.
+
+RETESTING THE SAME DEVICE
+-------------------------
+A claimed run durably locks its device ID. Issuing or redeeming another code is refused until a real cold reboot is complete.
+
+After that reboot, clear only the exact prior-run lock:
+
+  python -B serve_fw14_hx1400_access.py confirm-reboot --registry C:\FW14-Lab-State\access.sqlite3 --runs-root C:\FW14-Lab-State\runs --device-id lab-ps4-02 --after-run <exact-32-character-prior-run-id> --expected-client <current-console-ipv4>
+
+Never guess a run ID. Never use confirm-reboot to bypass a crash, ambiguous result, or same-boot refusal.
+
+CONSISTENCY MEASUREMENT
+-----------------------
+Do not claim a success rate from one console. For each device preserve:
+
+  - device ID, exact IPv4 binding, and firmware identity
+  - cold-boot confirmation
+  - code issuance/expiry metadata (never the plaintext code)
+  - gateway-events.jsonl and per-run diagnostic.json
+  - state.json, events.jsonl, result.json, the device boot-tombstone.json, and server.log
+  - visible GoldHEN observation or exact failure symptom
+
+Compare committed result codes and phase telemetry across independent cold boots. The gateway does not auto-retry or tune parameters after a failure; that would hide instability and violate the one-attempt boot boundary.
+
+GITHUB PAGES COMPANION
+----------------------
+Live companion:
+
+  https://unrealisedd.github.io/ps4-fw14-multidevice-lab/
+
+Public repository and release downloads:
+
+  https://github.com/Unrealisedd/ps4-fw14-multidevice-lab
+For a new fork or repository, select Settings > Pages > Source: GitHub Actions before the first deployment, then push main or manually dispatch Deploy Pages companion.
+
+
+The github-pages directory is safe to publish as a static companion. It displays release/hash metadata and performs only a top-level navigation to the operator's local IPv4.
+
+GitHub Pages does not receive access codes and cannot replace the local gateway: Pages cannot atomically consume codes, bind a console IP, launch the reviewed local child, deliver the pinned local HEN, or maintain per-device tombstones. Do not add OTP fields, payload files, HEN bytes, API tokens, or a public tunnel to the Pages site.
+
+See FW14_MULTIDEVICE_PROVENANCE.txt for the exact original/external implementation boundary.

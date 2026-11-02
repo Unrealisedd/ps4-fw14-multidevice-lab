@@ -1,0 +1,17 @@
+{
+  "schema": "oms.fw14-hx1400-goldhen-dualmap.static.v1",
+  "files": {
+    "/core_hx1400_lowmap.js": "fc60f461811d3acaa7952d1037f3a3517cf6a267bf5fa6759d361fe0c0fb4bca",
+    "/fw14_cleanup.js": "d7d70405c7c296735d263d07e253d8d4845ddc4133aa3a79d7ec23aa975b697b",
+    "/fw14_hx1400_goldhen_dualmap.html": "51678a3d09ebe4dd9fa17d9ac89006aa24cb2fa2bf69a0a00bcb1a31e15f0989",
+    "/hx1400_goldhen_dualmap_owner.js": "286e2a0d836ac8122b4b6995ec0a3c4e5f94cf1b54a5dcf93c6e29276af1756f",
+    "/hx1400_goldhen_dualmap_stage.js": "8c2cf3aef1524f88f06d971d8862a5c86ed372dc2374e1f351547e6ab538366a",
+    "/hx1400_jit_dualmap_lease.js": "ab8173b4eefa55b427bc11a8e9b1eed51c90bd43c757dcda191dfc3c2162522c",
+    "/hx1400_data.js": "8b37e6befc3a791f849241e4c7eccc2ba56b70c3369a4b635e7aaa5bf9de8740",
+    "/int64.js": "611da6a52da5ecf970a3718ab2a4561d3992c655c55342d066d12a9a50554f34",
+    "/jb_hx1400_goldhen_dualmap.js": "d00ff6598ce942e15254049b8ad92efbdb8332aa9b75092038fd61d64a45f1eb",
+    "/mem_hx1400_lowmap.js": "f59db590618b917b3c472b19e31c4fff619164167625a416ce2e886f4ae3533d",
+    "/ps4_offsets.js": "83e6d957e0d48159ab5606021c688ebcabb7f097405869165fe0ed30ede2178f",
+    "/sha256.js": "c9e84a26aafbc6ef029dd98542efc12aae7aef776b6f4a3da79cefdf231a0fdf"
+  }
+}
