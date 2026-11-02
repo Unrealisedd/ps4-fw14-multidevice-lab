@@ -1,12 +1,30 @@
-name: Deploy Pages companion
+name: Deploy direct FW14 launcher
 
 on:
   push:
     branches: [main]
     paths:
+      - "index.html"
+      - "core_hx1400_lowmap.js"
+      - "fw14_cleanup.js"
+      - "fw14_goldhen_direct_contract.js"
+      - "fw14_hx1400_goldhen_dualmap_entry.js"
+      - "hx1400_data.js"
+      - "hx1400_goldhen_dualmap_owner.js"
+      - "hx1400_goldhen_dualmap_stage.js"
+      - "hx1400_jit_dualmap_lease.js"
+      - "int64.js"
+      - "jb_hx1400_goldhen_dualmap.js"
+      - "mem_hx1400_lowmap.js"
+      - "ps4_offsets.js"
+      - "sha256.js"
+      - "hen.bin"
+      - "fw14_hx1400_goldhen_dualmap_static.json"
       - "github-pages/**"
       - "release-manifest.json"
       - "verify_release_manifest.py"
+      - "fw14_static_graph.py"
+      - "test_github_pages_direct.mjs"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -31,36 +49,76 @@ jobs:
           persist-credentials: false
       - name: Verify complete release manifest
         run: python -B verify_release_manifest.py --root .
-      - name: Verify Pages navigation contract
-        run: node --test test_github_pages_portal.mjs
+      - name: Verify direct launcher contract
+        run: node --test test_github_pages_direct.mjs
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
-      - name: Build exact static-only artifact
+      - name: Build exact direct-launch artifact
         shell: python
         run: |
+          import hashlib
           import json
           import shutil
-          from pathlib import Path
+          from pathlib import Path, PurePosixPath
 
-          source = Path("github-pages")
-          expected = {".nojekyll", "index.html", "portal.js", "release-manifest.json"}
-          entries = {
-              path.relative_to(source).as_posix()
-              for path in source.rglob("*")
+          pages = Path("github-pages")
+          pages_expected = {".nojekyll", "release-manifest.json"}
+          pages_entries = {
+              path.relative_to(pages).as_posix()
+              for path in pages.rglob("*")
           }
-          if entries != expected:
-              raise SystemExit(f"unexpected Pages entries: {sorted(entries ^ expected)}")
-          for name in expected:
-              path = source / name
+          if pages_entries != pages_expected:
+              raise SystemExit(f"unexpected Pages source entries: {sorted(pages_entries ^ pages_expected)}")
+
+          static_path = Path("fw14_hx1400_goldhen_dualmap_static.json")
+          static_manifest = json.loads(static_path.read_text(encoding="utf-8"))
+          if set(static_manifest) != {"schema", "files"}:
+              raise SystemExit("static manifest shape mismatch")
+          if static_manifest["schema"] != "oms.fw14-hx1400-goldhen-dualmap.static.v1":
+              raise SystemExit("static manifest schema mismatch")
+          if not isinstance(static_manifest["files"], dict) or not static_manifest["files"]:
+              raise SystemExit("static manifest files map is invalid")
+
+          sources = {
+              ".nojekyll": pages / ".nojekyll",
+              "release-manifest.json": pages / "release-manifest.json",
+              "fw14_hx1400_goldhen_dualmap_static.json": static_path,
+              "hen.bin": Path("hen.bin"),
+          }
+          for request_path in static_manifest["files"]:
+              if not isinstance(request_path, str) or not request_path.startswith("/"):
+                  raise SystemExit(f"invalid static request path: {request_path!r}")
+              relative = PurePosixPath(request_path.removeprefix("/"))
+              name = relative.as_posix()
+              if not name or relative.is_absolute() or ".." in relative.parts or name in sources:
+                  raise SystemExit(f"unsafe or duplicate static request path: {request_path!r}")
+              sources[name] = Path(*relative.parts)
+          if "index.html" not in sources:
+              raise SystemExit("static graph does not contain index.html")
+          for name, path in sources.items():
               if path.is_symlink() or not path.is_file():
-                  raise SystemExit(f"Pages entry is not a regular file: {name}")
-          manifest = json.loads((source / "release-manifest.json").read_text(encoding="utf-8"))
-          if manifest.get("schema") != "oms.fw14-hx1400-access.release.v1":
+                  raise SystemExit(f"direct-launch source is not a regular file: {name}")
+
+          manifest = json.loads(sources["release-manifest.json"].read_text(encoding="utf-8"))
+          if manifest.get("schema") != "oms.fw14-goldhen-direct.release.v1":
               raise SystemExit("release manifest schema mismatch")
+          hen = sources["hen.bin"].read_bytes()
+          hen_digest = hashlib.sha256(hen).hexdigest()
+          if len(hen) != 0x89440 or hen_digest != manifest.get("henSha256"):
+              raise SystemExit("Pages HEN pin mismatch")
 
           stage = Path("_site")
           stage.mkdir()
-          for name in expected:
-              shutil.copyfile(source / name, stage / name)
+          for name, path in sources.items():
+              destination = stage.joinpath(*PurePosixPath(name).parts)
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copyfile(path, destination)
+          actual = {
+              path.relative_to(stage).as_posix()
+              for path in stage.rglob("*")
+              if path.is_file()
+          }
+          if actual != set(sources):
+              raise SystemExit(f"unexpected staged entries: {sorted(actual ^ set(sources))}")
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: _site

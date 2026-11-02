@@ -1,4 +1,6 @@
-let DRAIN_COUNT = 512;
+import { FW14_GOLDHEN_DIRECT_PROFILE } from "./fw14_goldhen_direct_contract.js?v=fw14-pages-direct-1";
+
+const DRAIN_COUNT = FW14_GOLDHEN_DIRECT_PROFILE.drain;
 const AUTO_RETRY_DELAY_MS = 50;
 
 const K = 2;
@@ -13,44 +15,21 @@ const FUNCTION_BYTES = 0x20;
 const NATIVE_EXECUTABLE_BYTES = 0x38;
 const HOLDER_BYTES = 0x40;
 
-const CARRIER_SLOTS = (function () {
-  try {
-    const q = new URLSearchParams(location.search).get("slots");
-    const n = q ? parseInt(q, 10) : 0;
-    if (n >= 100000 && n <= 40000000) return n;
-  } catch (e) {}
-  return 12000000;
-})();
+const CARRIER_SLOTS = FW14_GOLDHEN_DIRECT_PROFILE.slots;
 const CARRIER_BYTES = CARRIER_SLOTS * 8;
 const CAPTURE_DELAY_MS = 50;
 const COMPOSE_DELAY_MS = 100;
 
 const symbolToString = Symbol.prototype.toString;
 
-const _gOverride = (function () {
-  const out = {};
-  try {
-    const q = new URLSearchParams(location.search).getAll("g");
-    for (const item of q) {
-      const [k, v] = item.split(":");
-      const n = v && v.startsWith("0x") ? parseInt(v, 16) : parseInt(v, 10);
-      if (k && n > 0) out[k] = n;
-    }
-  } catch (e) {}
-  return out;
-})();
-const _g = (name, dflt) =>
-  typeof _gOverride[name] === "number" ? _gOverride[name] : dflt;
-if (typeof _gOverride.drain === "number") DRAIN_COUNT = _gOverride.drain;
-
-const DRAIN_SIZE = _g("drainsz", 0x10000);
-const SLAB_SIZE = _g("slab", 0x400000);
-const BUTTERFLY_HOLE_SIZE = _g("bfly", 0x81000);
-const SEPARATOR_SIZE = _g("sep", 0x10000);
-const EARLY_HOLE_SIZE = _g("early", 0x70000);
-const GUARD_SIZE = _g("guard", 0x90000);
-const PREDECESSOR_SIZE = _g("pred", 0x80000);
-const FINAL_HOLE_SIZE = _g("final", 0x80000);
+const DRAIN_SIZE = 0x10000;
+const SLAB_SIZE = 0x400000;
+const BUTTERFLY_HOLE_SIZE = 0x81000;
+const SEPARATOR_SIZE = 0x10000;
+const EARLY_HOLE_SIZE = 0x70000;
+const GUARD_SIZE = 0x90000;
+const PREDECESSOR_SIZE = 0x80000;
+const FINAL_HOLE_SIZE = 0x80000;
 
 const RW_BUFFER_SIZE = 0x100;
 

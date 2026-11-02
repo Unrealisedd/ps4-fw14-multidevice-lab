@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import hmac
-import html.parser
 import json
 import mimetypes
 import os
@@ -16,11 +15,15 @@ import socket
 import tempfile
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from threading import Lock
-from types import MappingProxyType
 from typing import Any, Mapping
 from urllib.parse import parse_qs, urlsplit
+
+try:
+    from .fw14_static_graph import load_static_graph
+except ImportError:
+    from fw14_static_graph import load_static_graph
 
 STAGE_PAGE = "/fw14_kdump.html"
 STAGE_QUERY = "stage=fw14-kdump&retry=0"
@@ -37,11 +40,6 @@ STATIC_MANIFEST_NAME = "fw14_kdump_static.json"
 SOCKET_TIMEOUT = 20.0
 HEX64 = re.compile(r"0x[0-9a-f]{16}\Z")
 HEX256 = re.compile(r"[0-9a-f]{64}\Z")
-IMPORT_RE = re.compile(
-    r"(?:\bimport\s*(?:[^;'\"]*?\s+from\s*)?|\bexport\s+[^;'\"]*?\s+from\s*|\bimport\s*\(\s*)"
-    r"['\"]([^'\"]+)['\"]"
-)
-WORKER_RE = re.compile(r"(?:\bnew\s+Worker\s*\(|\bimportScripts\s*\()\s*['\"]([^'\"]+)['\"]")
 PROOF_FIELDS = {"marker", "readback", "restored", "reread", "scratch_rva", "scratch_address", "marker_toggled"}
 PROOF_METHODS = {
     "write_path": "slow-sysctl-krw",
@@ -192,88 +190,6 @@ def marker_for(challenge: bytes, kernel_base: int) -> int:
     return int.from_bytes(digest[:4], "little")
 
 
-class _ScriptParser(html.parser.HTMLParser):
-    def __init__(self) -> None:
-        super().__init__(convert_charrefs=True)
-        self.sources: list[str] = []
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag.lower() == "script":
-            values = dict(attrs)
-            if values.get("src") is not None:
-                self.sources.append(values["src"] or "")
-
-
-def _local_dependency(parent: str, reference: str) -> str:
-    parsed = urlsplit(reference)
-    if parsed.scheme or parsed.netloc or parsed.fragment or not parsed.path:
-        raise ValueError(f"non-local or malformed static dependency {reference!r} from {parent}")
-    if parsed.path.startswith("/"):
-        candidate = PurePosixPath(parsed.path)
-    else:
-        candidate = PurePosixPath(parent).parent / parsed.path
-    normalized = "/" + str(candidate).lstrip("/")
-    if ".." in PurePosixPath(normalized).parts or not normalized.endswith(".js"):
-        raise ValueError(f"unsafe or non-JavaScript dependency {reference!r} from {parent}")
-    return normalized
-
-
-def load_static_graph(
-    root: Path,
-    expected_hashes: Mapping[str, str] | None = None,
-    *,
-    stage_page: str = STAGE_PAGE,
-) -> tuple[Mapping[str, bytes], Mapping[str, str], str]:
-    root = root.resolve()
-    pending = [stage_page]
-    payloads: dict[str, bytes] = {}
-    hashes: dict[str, str] = {}
-    while pending:
-        request_path = pending.pop()
-        if request_path in payloads:
-            continue
-        try:
-            source = (root / request_path.removeprefix("/")).resolve(strict=True)
-            source.relative_to(root)
-            if not source.is_file():
-                raise ValueError("not a regular file")
-            payload = source.read_bytes()
-        except (OSError, ValueError) as error:
-            raise ValueError(
-                f"required static file escapes the root or is unreadable: {request_path}: {error}"
-            ) from error
-        payloads[request_path] = payload
-        hashes[request_path] = hashlib.sha256(payload).hexdigest()
-        try:
-            text = payload.decode("utf-8")
-        except UnicodeError as error:
-            raise ValueError(f"required static file is not UTF-8: {request_path}: {error}") from error
-        if request_path == stage_page:
-            parser = _ScriptParser()
-            parser.feed(text)
-            references = parser.sources + IMPORT_RE.findall(text) + WORKER_RE.findall(text)
-            if not references:
-                raise ValueError(f"{stage_page} loads no JavaScript")
-        else:
-            references = IMPORT_RE.findall(text) + WORKER_RE.findall(text)
-        pending.extend(_local_dependency(request_path, reference) for reference in references)
-    if expected_hashes is not None:
-        expected = dict(expected_hashes)
-        if set(expected) != set(hashes):
-            raise ValueError(
-                f"static manifest paths differ: expected={sorted(expected)} discovered={sorted(hashes)}"
-            )
-        mismatched = [
-            path
-            for path in sorted(hashes)
-            if not hmac.compare_digest(hashes[path], expected[path])
-        ]
-        if mismatched:
-            raise ValueError(f"static manifest hash mismatch: {mismatched}")
-    manifest = hashlib.sha256(
-        "".join(f"{path} {hashes[path]}\n" for path in sorted(hashes)).encode("ascii")
-    ).hexdigest()
-    return MappingProxyType(payloads), MappingProxyType(hashes), manifest
 
 
 class DurableEventLog:
@@ -863,7 +779,7 @@ def main() -> int:
         ):
             raise ValueError("static manifest files must map paths to SHA-256")
         static_payloads, static_hashes, static_manifest = load_static_graph(
-            root, expected_hashes
+            root, expected_hashes, stage_page=STAGE_PAGE
         )
     except (OSError, ValueError, UnicodeError, json.JSONDecodeError, ProtocolError) as error:
         parser.error(f"invalid {manifest_path}: {error}")

@@ -1,17 +1,37 @@
-FW14 MULTI-DEVICE HARNESS — PROVENANCE
-======================================
+FW14 DIRECT GOLDHEN PUBLICATION PROVENANCE
+==========================================
 
-The public-facing access page, one-time-code registry, device binding, child-process coordinator, evidence layout, and GitHub Pages companion were independently implemented in this workspace. No Sentrix HTML, JavaScript, styling, server code, naming, or GoldHEN binary was copied into this harness.
+ORIGINAL PROJECT SCOPE
+----------------------
+The direct GitHub Pages launcher, explicit-click firmware/route gate, local cryptographic claim adapter, browser session latches, cleanup integration, static dependency verification, release manifest, deployment workflow, tests, and documentation are original work in this project.
 
-The supplied Sentrix raw13 source was previously frozen and inspected as an empirical comparison. Two profile values were adopted after analysis:
+The version 1.0 local OTP gateway, device binding, server intent, durable reboot lock, and evidence protocol were original project work as well. They were removed from the active version 1.1 flow when the operator requested a direct public launcher. Their history remains available in Git.
+
+EXTERNAL AND EMPIRICAL INPUTS
+-----------------------------
+The underlying WebKit/kernel exploit lineage remains the work of its respective researchers. The active child retains two operator-supplied empirical comparison values:
 
   slots = 9100000
   collection profile = drain:12
 
-Those values remain in the byte-pinned child route because changing proven behavior merely to avoid a recognizable value would reduce correctness. The operator separately reported the comparison route working and later reported a visible GoldHEN load from the hardened child. Public artifacts deliberately omit local run identifiers, archive names, and evidence hashes.
+These values are not presented as independently derived by this publication.
 
-The child route's security design is independent: source13 machine semantics, separate prepatch RW/RX aliases, exact credential restoration, 24 stock and 24 patched guard checks, verified cleanup, exploit retirement, then postpatch pthread dispatch of the pinned self-writing HEN.
+GOLDHEN
+-------
+GoldHEN is authored by SiSTR0 and contributors. The included hen.bin is separately authored and is not covered by this repository's MIT license. The project does not claim authorship, ownership, or upstream affiliation.
 
-GoldHEN is a separately authored payload. This repository pins the expected externally supplied image by SHA-256 but does not redistribute it; operators stage their own reviewed copy locally. It does not claim authorship of GoldHEN, the underlying public exploit lineage, or third-party research.
+The operator explicitly represented that the exact included 562240-byte image may be publicly redistributed. Its SHA-256 is:
 
-This file is part of the release boundary. Do not remove it to imply that every underlying idea or payload was created here. The correct claim is narrower: the reusable multi-device harness, hardened integration, access control, evidence protocol, and public UI are original implementations; external inputs and empirical influences remain attributed.
+  29ec095fbede651e29954de43411599093138791e62105aaee6fdced58edec06
+
+See THIRD_PARTY_NOTICES.md for official project links and attribution.
+
+HARDWARE CLAIM BOUNDARY
+-----------------------
+No physical-console execution result is claimed as evidence for this publication. Source inspection defines a successful browser result as dispatch reaching pthread_create; visible GoldHEN readiness would require a separate hardware observation.
+
+Moving the closure to GitHub Pages changes origin, routing, caching, and server-side controls. Publication and desktop-browser smoke tests do not prove execution on a physical PS4. Any console attempt must be reported as a new observation, not inferred from deployment success.
+
+AI DISCLOSURE
+-------------
+Engineering and review used OpenAI Codex (openai-codex/gpt-5.6-sol) under operator direction. No generated media assets are included.

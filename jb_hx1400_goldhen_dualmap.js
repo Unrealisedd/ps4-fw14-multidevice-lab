@@ -8,6 +8,11 @@ import {
   finishFw14AttemptCleanup,
   shouldRunLegacyWorkerCleanup,
 } from "./fw14_cleanup.js?v=fw14-kdump-2";
+import {
+  FW14_GOLDHEN_DIRECT_PROFILE,
+  buildFw14GoldhenLocalClaim,
+  isFw14GoldhenDirectRoute,
+} from "./fw14_goldhen_direct_contract.js?v=fw14-pages-direct-1";
 
 const outEl = document.getElementById("out");
 const stateEl = document.getElementById("state");
@@ -28,11 +33,7 @@ const KDUMP_ARM_KEY = "jb-fw14-kdump-arm-attempted";
 const KDUMP_CLICK_KEY = "jb-fw14-kdump-click-token";
 const HX_ARM_KEY = "jb-fw14-hx1400-goldhen-dualmap-arm-attempted";
 const HX_CLICK_KEY = "jb-fw14-hx1400-goldhen-dualmap-click-token";
-const params = new URLSearchParams(location.search);
-const fw14HxIntent = /^[0-9a-f]{64}$/.test(params.get("intent") || "")
-  ? params.get("intent")
-  : "";
-const STOP_BEFORE_DOUBLE = params.get("stop") === "beforedouble";
+const STOP_BEFORE_DOUBLE = false;
 const ORACLE_DIAGNOSTIC_PHASES = Object.freeze(["not-started","oracle-entered","round-1-request-validated","round-1-signature-before-ok","round-1-chain-built","round-1-bridge-returned","round-1-signature-after-ok","round-1-complete","round-2-request-validated","round-2-signature-before-ok","round-2-chain-built","round-2-bridge-returned","round-2-signature-after-ok","round-2-complete","authority-consumed","oracle-complete"]);
 const ORACLE_DIAGNOSTIC_REASONS = Object.freeze(["none","request-validation","signature-read","signature-mismatch","chain-build","bridge-failed","capture","oracle-module-quarantine","unknown"]);
 function validOracleDiagnostics(value) {
@@ -67,41 +68,8 @@ function validOracleDiagnostics(value) {
   return true;
 }
 
-let postDeferred = false;
-let deferredPosts = [];
-function sendPost(tag, detail) {
-  try {
-    const x = new XMLHttpRequest();
-    x.open("POST", "/hx1400-goldhen-dualmap/telemetry", true);
-    x.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-    if (fw14HxIntent) x.setRequestHeader("X-Hx1400-Goldhen-Dualmap-Intent", fw14HxIntent);
-    x.send(
-      "HX1400-GOLDHEN&tag=" +
-        encodeURIComponent(tag) +
-        "&detail=" +
-        encodeURIComponent(fw14Hx ? "" : String(detail == null ? "" : detail)),
-    );
-  } catch (e) {}
-}
-function post(tag, detail) {
-  if (postDeferred) {
-    deferredPosts.push([tag, detail]);
-    return;
-  }
-  sendPost(tag, detail);
-}
-function setPostDeferred(deferred) {
-  if (deferred) {
-    postDeferred = true;
-    return;
-  }
-  postDeferred = false;
-  const pending = deferredPosts;
-  deferredPosts = [];
-  for (const [tag, detail] of pending) sendPost(tag, detail);
-}
 
-const VERBOSE = params.get("verbose") === "1";
+const VERBOSE = false;
 const PROSE = [
   / -- /,
   /\.\s/,
@@ -123,23 +91,17 @@ function terse(s) {
   return s;
 }
 
-const SHOW_LOG = params.get("log") === "1";
-if (SHOW_LOG && document.body) document.body.className = "log";
+const SHOW_LOG = false;
 function finishUI(ok) {
   if (SHOW_LOG || !document.body) return;
   const m = document.getElementById("msg");
   if (m)
     m.textContent = ok
-      ? "DONE"
-      : armedEver ||
-          (fw14Kdump && fw14KdumpAttemptConsumed) ||
-          (fw14Hx && fw14HxAttemptConsumed)
-        ? "Restart your console"
-        : "Refresh the page and run again";
+      ? "GoldHEN launch dispatched; cold reboot now"
+      : "Attempt stopped; cold reboot before another attempt";
   document.body.className = ok ? "done" : "fail";
 }
 function mark(tag, detail) {
-  const raw = detail;
   detail = terse(detail);
   lines.push(tag + (detail == null || detail === "" ? "" : "  " + detail));
   if (SHOW_LOG && outEl) {
@@ -162,12 +124,10 @@ function mark(tag, detail) {
       .join("\n");
     outEl.scrollTop = outEl.scrollHeight;
   }
-  post(tag, raw);
 }
 
 function trace(tag, detail) {
   if (VERBOSE) mark(tag, detail);
-  else post(tag, detail);
 }
 function state(t, c) {
   if (!stateEl) return;
@@ -260,7 +220,7 @@ export async function startHx1400GoldhenDualmapClient() {
   let kdumpChallenge = null;
   let hxClaim = null;
   let hxResult = null;
-  let hxResultCommitted = false;
+  let hxResultFinalizedLocally = false;
   let fw14AioCleanup = null;
   let restoreManagedWorker = null;
   let fw14TerminalError = "";
@@ -335,186 +295,16 @@ export async function startHx1400GoldhenDualmapClient() {
       return;
     }
     const fwKey = key || "unknown";
-    const kdumpKeys = [...params.keys()];
-    fw14Kdump =
-      fwKey === "14.00" &&
-      location.pathname === "/fw14_kdump.html" &&
-      params.get("stage") === "fw14-kdump" &&
-      params.get("retry") === "0" &&
-      kdumpKeys.length === 2 &&
-      kdumpKeys.every(
-        (name) =>
-          (name === "stage" || name === "retry") &&
-          params.getAll(name).length === 1,
-      );
-    if (params.get("stage") === "fw14-kdump" && !fw14Kdump) {
-      mark(
-        "FW14-KDUMP-REFUSE",
-        "requires firmware=14.00 path=/fw14_kdump.html query=stage%3Dfw14-kdump%26retry%3D0",
-      );
-      state("FW14 kdump request refused", "bad");
-      return;
-    }
-    const hxKeys = [...params.keys()];
     fw14Hx =
       fwKey === "14.00" &&
-      location.pathname === "/fw14_hx1400_goldhen_dualmap.html" &&
-      params.get("stage") === "fw14-hx1400-goldhen-dualmap" &&
-      params.get("retry") === "0" &&
-      params.get("slots") === "9100000" &&
-      params.get("g") === "drain:12" &&
-      /^[0-9a-f]{64}$/.test(fw14HxIntent) &&
-      hxKeys.length === 5 &&
-      hxKeys.every(
-        (name) =>
-          (name === "stage" ||
-            name === "retry" ||
-            name === "slots" ||
-            name === "g" ||
-            name === "intent") &&
-          params.getAll(name).length === 1,
-      );
-    if (params.get("stage") === "fw14-hx1400-goldhen-dualmap" && !fw14Hx) {
+      isFw14GoldhenDirectRoute(location, import.meta.url);
+    if (!fw14Hx) {
       mark(
         "FW14-HX1400-GOLDHEN-REFUSE",
-        "requires firmware=14.00 path=/fw14_hx1400_goldhen_dualmap.html exact stage/retry/slots=9100000/g=drain:12/intent query",
+        "requires firmware=14.00 and the exact project-root route with no query or fragment",
       );
-      state("FW14 Hx1400 GoldHEN request refused", "bad");
-      return;
-    }
-    if (!fw14Hx) {
-      mark("FW14-HX1400-GOLDHEN-REFUSE", "GoldHEN loader accepts only its exact route identity");
       state("FW14 Hx1400 GoldHEN route identity required", "bad");
       return;
-    }
-    if (fwKey === "14.00" && params.get("probe") === "leak2") {
-      mark("LEAK2-RETIRED", "single owner run completed; no further AIO request is permitted");
-      state("14.00 leak2 retired; reboot after the prior run", "bad");
-      const message = document.getElementById("msg");
-      if (message) message.textContent = "14.00 leak2 retired";
-      return;
-    }
-    const leak2Allowed = new Set([
-      "probe", "num", "retry", "leakretry", "park", "reap", "reapleak",
-      "log", "verbose",
-    ]);
-    fw14Leak2 = fwKey === "14.00" &&
-      location.pathname === "/probe14_aio_leak2.html" &&
-      params.get("probe") === "leak2" &&
-      params.get("num") === "2" &&
-      params.get("retry") === "0" &&
-      (!params.has("leakretry") || params.get("leakretry") === "0") &&
-      (!params.has("park") || params.get("park") === "0") &&
-      (!params.has("reap") || params.get("reap") === "1") &&
-      (!params.has("reapleak") || params.get("reapleak") === "1") &&
-      [...params.keys()].every((name) =>
-        leak2Allowed.has(name) && params.getAll(name).length === 1);
-
-    const KRW_PROBE_ONLY =
-      !fw14Kdump && !fw14Hx && !fw14Leak2 && params.get("probe") === "krw";
-    if (fwKey === "14.00" && !fw14Leak2 && !fw14Kdump && !fw14Hx) {
-      mark(
-        "FW14-REFUSE",
-        "14.00 only permits an exact dedicated one-shot stage page",
-      );
-      state("14.00 kernel path refused", "bad");
-      const message = document.getElementById("msg");
-      if (message) message.textContent = "Use a dedicated reviewed FW14 page";
-      if (document.body) document.body.className = SHOW_LOG ? "log" : "fail";
-      return;
-    }
-    if (fw14Leak2) {
-      try {
-        if (sessionStorage.getItem(LEAK2_CLICK_KEY) !== "1") {
-          mark("LEAK2-REFUSE", "explicit click token missing");
-          state("leak2 refused: explicit click required", "bad");
-          const message = document.getElementById("msg");
-          if (message) message.textContent = "Explicit click required";
-          return;
-        }
-        sessionStorage.removeItem(LEAK2_CLICK_KEY);
-        if (sessionStorage.getItem(LEAK2_CLICK_KEY) !== null) {
-          mark("LEAK2-REFUSE", "click token could not be consumed");
-          state("leak2 refused: click token could not be consumed", "bad");
-          return;
-        }
-        if (sessionStorage.getItem(LEAK2_ARM_KEY) !== null) {
-          mark("LEAK2-REFUSE", "an AIO submission was attempted in this tab; reboot required");
-          state("leak2 refused: manual reboot required", "bad");
-          const message = document.getElementById("msg");
-          if (message) message.textContent = "Manual reboot required";
-          return;
-        }
-      } catch (e) {
-        mark("LEAK2-REFUSE", "click/arm storage inaccessible");
-        state("leak2 refused: storage inaccessible", "bad");
-        return;
-      }
-      mark("LEAK2-MODE", "single arming; candidate pointer only; no kernel R/W or jailbreak; reboot after outcome");
-    }
-    if (fw14Kdump) {
-      mark(
-        "FW14-KDUMP-BOOTSTRAP-RISK",
-        "pre-KRW IDT/OID RVAs are adjacent-13.52 hypotheses; runtime gates reject mismatches but cannot prevent every bad-address fault",
-      );
-      try {
-        if (sessionStorage.getItem(KDUMP_CLICK_KEY) !== "1")
-          throw new Error("explicit click token missing");
-        sessionStorage.removeItem(KDUMP_CLICK_KEY);
-        if (sessionStorage.getItem(KDUMP_CLICK_KEY) !== null)
-          throw new Error("click token could not be consumed");
-        if (sessionStorage.getItem(KDUMP_ARM_KEY) !== null)
-          throw new Error("kernel-stage attempt already consumed in this tab");
-        sessionStorage.setItem(KDUMP_ARM_KEY, "1");
-        if (sessionStorage.getItem(KDUMP_ARM_KEY) !== "1")
-          throw new Error("kernel-stage latch did not read back");
-        fw14KdumpAttemptConsumed = true;
-      } catch (e) {
-        mark("FW14-KDUMP-REFUSE", (e && e.message) || String(e));
-        state("One-shot token refused; reboot before another attempt", "bad");
-        return;
-      }
-
-      try {
-        const challengeResponse = await fetch("/kdump/challenge", {
-          method: "GET",
-          cache: "no-store",
-          credentials: "same-origin",
-        });
-        if (!challengeResponse.ok)
-          throw new Error("challenge HTTP " + challengeResponse.status);
-        const body = await challengeResponse.json();
-        const chunkMax = Number(body && body.chunk_max);
-        if (
-          !body ||
-          typeof body.run_id !== "string" ||
-          body.run_id.length < 1 ||
-          body.run_id.length > 128 ||
-          typeof body.challenge_hex !== "string" ||
-          !/^[0-9a-fA-F]{64}$/.test(body.challenge_hex) ||
-          !Number.isInteger(chunkMax) ||
-          chunkMax < 1 ||
-          chunkMax > 0x400000
-        )
-          throw new Error("challenge schema invalid");
-        kdumpChallenge = {
-          run_id: body.run_id,
-          challenge_hex: body.challenge_hex.toLowerCase(),
-          chunk_max: chunkMax,
-        };
-      } catch (e) {
-        mark("FW14-KDUMP-CHALLENGE-FAIL", (e && e.message) || String(e));
-        state("Challenge failed; reboot and start a fresh server run", "bad");
-        return;
-      }
-      mark(
-        "FW14-KDUMP-MODE",
-        "run=" +
-          kdumpChallenge.run_id +
-          " chunk_max=" +
-          kdumpChallenge.chunk_max +
-          " retry=0 jb=0 patch=0 payload=0 skipjb=0 keepjb=0",
-      );
     }
     if (fw14Hx) {
       mark(
@@ -540,66 +330,38 @@ export async function startHx1400GoldhenDualmapClient() {
       }
 
       try {
-        const claimResponse = await fetch("/hx1400-goldhen-dualmap/claim", {
-          method: "POST",
-          cache: "no-store",
-          credentials: "same-origin",
-          headers: { "X-Hx1400-Goldhen-Dualmap-Intent": fw14HxIntent },
-        });
-        if (!claimResponse.ok)
-          throw new Error("claim HTTP " + claimResponse.status);
-        const body = await claimResponse.json();
-        const keys = body && typeof body === "object" ? Object.keys(body) : [];
-        const patchKeys = body && body.patch && typeof body.patch === "object" ? Object.keys(body.patch) : [];
-        const henKeys = body && body.hen && typeof body.hen === "object" ? Object.keys(body.hen) : [];
+        hxClaim = buildFw14GoldhenLocalClaim();
+        const keys = Object.keys(hxClaim);
+        const patchKeys = Object.keys(hxClaim.patch);
+        const henKeys = Object.keys(hxClaim.hen);
         if (
-          !body ||
           keys.length !== 6 ||
           !keys.every((name) => ["schema","run_id","challenge_hex","max_arms","patch","hen"].includes(name)) ||
           patchKeys.length !== 3 ||
           !patchKeys.every((name) => ["sha256","size","offset"].includes(name)) ||
           henKeys.length !== 5 ||
           !henKeys.every((name) => ["sha256","size","offset","head","entry"].includes(name)) ||
-          body.schema !== "oms.fw14-hx1400-goldhen-dualmap.claim.v1" ||
-          typeof body.run_id !== "string" ||
-          body.run_id.length < 1 ||
-          body.run_id.length > 128 ||
-          typeof body.challenge_hex !== "string" ||
-          !/^[0-9a-f]{64}$/.test(body.challenge_hex) ||
-          body.max_arms !== 32 ||
-          body.patch.sha256 !== "165d2ad966b3829d1fbcb53d5e7ecbc20563de4a6a49ee70d8126d0256a49c02" ||
-          body.patch.size !== 632 ||
-          body.patch.offset !== 0 ||
-          body.hen.sha256 !== "29ec095fbede651e29954de43411599093138791e62105aaee6fdced58edec06" ||
-          body.hen.size !== 0x89440 ||
-          body.hen.offset !== 0x4000 ||
-          body.hen.head !== "e9a64a0000" ||
-          body.hen.entry !== 0x4aab
-        ) throw new Error("claim schema invalid");
-        hxClaim = Object.freeze({
-          schema: body.schema,
-          run_id: body.run_id,
-          challenge_hex: body.challenge_hex,
-          max_arms: body.max_arms,
-          patch: Object.freeze({...body.patch}),
-          hen: Object.freeze({...body.hen}),
-        });
+          hxClaim.schema !== "oms.fw14-hx1400-goldhen-dualmap.claim.v1" ||
+          !/^[0-9a-f]{32}$/.test(hxClaim.run_id) ||
+          !/^[0-9a-f]{64}$/.test(hxClaim.challenge_hex) ||
+          hxClaim.max_arms !== 32 ||
+          !Object.isFrozen(hxClaim) ||
+          !Object.isFrozen(hxClaim.patch) ||
+          !Object.isFrozen(hxClaim.hen)
+        ) throw new Error("local claim schema invalid");
       } catch (e) {
         fw14TerminalError = (e && e.message) || String(e);
         mark("FW14-HX1400-GOLDHEN-CLAIM-FAIL", fw14TerminalError);
-        state("Claim failed; cold reboot and start a fresh server run", "bad");
+        state("Local claim failed closed; cold reboot before another attempt", "bad");
         return;
       }
-      mark("FW14-HX1400-GOLDHEN-DUALMAP-MODE", "run=" + hxClaim.run_id + " max_arms=" + hxClaim.max_arms + " patch_aliases=rw+rx hen_map=postpatch-rwx");
-    }
-    if (KRW_PROBE_ONLY) {
       mark(
-        "KRW-PROBE-MODE",
-        "jailbreak=0 patch=0 payload=0 pre-write-retry-max=" +
-          (params.get("retry") || "4") +
-          " leakretry=" +
-          (params.get("leakretry") === "1" ? 1 : 0) +
-          "; reboot after final outcome",
+        "FW14-HX1400-GOLDHEN-DUALMAP-MODE",
+        "run=" + hxClaim.run_id +
+          " max_arms=" + hxClaim.max_arms +
+          " slots=" + FW14_GOLDHEN_DIRECT_PROFILE.slots +
+          " groom=drain:" + FW14_GOLDHEN_DIRECT_PROFILE.drain +
+          " patch_aliases=rw+rx hen_map=postpatch-rwx",
       );
     }
 
@@ -637,13 +399,7 @@ export async function startHx1400GoldhenDualmapClient() {
     // A hard KP (a total reclaim miss that faults inside the cancel walk)
     // cannot be caught here and still needs a reboot -- this only recovers
     // the benign, detectable misses.
-    const retryArg = parseInt(params.get("retry") || "", 10);
-    const RETRY_MAX =
-      fw14Kdump || fw14Hx || fw14Leak2
-        ? 0
-        : Number.isFinite(retryArg) && retryArg >= 0
-          ? retryArg
-          : 4;
+    const RETRY_MAX = 0;
     const RETRY_KEY = "jb-fw14-hx1400-goldhen-dualmap-read-retry";
     const retryCount = () => {
       try {
@@ -1080,11 +836,14 @@ export async function startHx1400GoldhenDualmapClient() {
         bufAddr,
         sha256: async (bytes) => sha256(bytes),
         async fetchHen() {
-          const response = await fetch("/hx1400-goldhen-dualmap/hen", {
+          const henUrl = new URL("./hen.bin", import.meta.url);
+          if (henUrl.origin !== location.origin)
+            throw new Error("HEN URL is not same-origin");
+          const response = await fetch(henUrl, {
             method: "GET",
             cache: "no-store",
-            credentials: "same-origin",
-            headers: { "X-Hx1400-Goldhen-Dualmap-Intent": fw14HxIntent },
+            credentials: "omit",
+            redirect: "error",
           });
           if (!response.ok) throw new Error("HEN HTTP " + response.status);
           return new Uint8Array(await response.arrayBuffer());
@@ -1605,19 +1364,12 @@ export async function startHx1400GoldhenDualmapClient() {
       const serializedHxResult = JSON.stringify(hxResult);
       if (/0x[0-9a-f]{8,16}/i.test(serializedHxResult))
         throw new Error("Hx1400 GoldHEN result contains a serialized address");
-      const resultResponse = await fetch("/hx1400-goldhen-dualmap/result", {
-        method: "POST",
-        cache: "no-store",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Hx1400-Goldhen-Dualmap-Intent": fw14HxIntent,
-        },
-        body: serializedHxResult,
-      });
-      if (!resultResponse.ok)
-        throw new Error("result commit HTTP " + resultResponse.status);
-      hxResultCommitted = true;
+      hxResultFinalizedLocally = true;
+      mark(
+        "FW14-HX1400-GOLDHEN-LOCAL-FINAL",
+        "run=" + hxClaim.run_id + " ok=" + (hxResult.ok ? "1" : "0") +
+          " cleanup=" + (hxResult.cleanupVerified ? "1" : "0"),
+      );
       allDone = hxResult.ok;
       fw14CleanupIncomplete = !hxResult.cleanupVerified;
       if (!hxResult.ok) fw14TerminalError = hxResult.code;
@@ -1788,64 +1540,13 @@ export async function startHx1400GoldhenDualmapClient() {
     try {
       if (typeof A !== "undefined" && A) A.busy = 0;
     } catch (e) {}
-    if (fw14Kdump && kdumpChallenge && !allDone) {
-      try {
-        const abortResponse = await fetch("/kdump/abort", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            run_id: kdumpChallenge.run_id,
-            code: "browser-stage-failed",
-            detail: fw14TerminalError || "stage ended without verified completion",
-          }),
-        });
-        if (!abortResponse.ok && abortResponse.status !== 410)
-          throw new Error("/kdump/abort HTTP " + abortResponse.status);
-        mark("FW14-RECEIVER-ABORT", "status=" + abortResponse.status);
-        if (!fw14CleanupIncomplete)
-          state(
-            fw14Miss
-              ? "No kernel pointer observed; cleanup verified; receiver aborted the attempt"
-              : "Attempt aborted; cleanup verified; reboot before another attempt",
-            "bad",
-          );
-      } catch (abortError) {
-        mark(
-          "FW14-RECEIVER-ABORT-FAIL",
-          (abortError && abortError.message) || String(abortError),
-        );
-        if (!fw14CleanupIncomplete)
-          state(
-            "Receiver abort failed; reboot before another attempt",
-            "bad",
-          );
-      }
-    }
-    if (fw14Hx && hxClaim && !hxResultCommitted) {
-      try {
-        const abortResponse = await fetch("/hx1400-goldhen-dualmap/abort", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Hx1400-Goldhen-Dualmap-Intent": fw14HxIntent,
-          },
-          body: JSON.stringify({
-            run_id: hxClaim.run_id,
-            code: "browser-stage-failed",
-            detail: "browser stage ended without a committed result",
-          }),
-        });
-        if (!abortResponse.ok && abortResponse.status !== 410)
-          throw new Error("/hx1400-goldhen-dualmap/abort HTTP " + abortResponse.status);
-        mark("FW14-HX1400-GOLDHEN-ABORT", "status=" + abortResponse.status);
-      } catch (abortError) {
-        mark(
-          "FW14-HX1400-GOLDHEN-ABORT-FAIL",
-          (abortError && abortError.message) || String(abortError),
-        );
-      }
+    if (fw14Hx && hxClaim && !hxResultFinalizedLocally) {
+      mark(
+        "FW14-HX1400-GOLDHEN-LOCAL-TERMINAL",
+        "run=" + hxClaim.run_id +
+          " finalized=0 cleanup=" + (fw14CleanupIncomplete ? "incomplete" : "complete") +
+          " detail=" + (fw14TerminalError || "stage ended without a validated local result"),
+      );
     }
     mark(
       "PROOF-SUMMARY-FINAL",
