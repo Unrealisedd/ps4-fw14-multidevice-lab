@@ -1,9 +1,17 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import vm from "node:vm";
 
 const source = readFileSync(new URL("./github-pages/portal.js", import.meta.url), "utf8");
+const indexSource = readFileSync(new URL("./github-pages/index.html", import.meta.url), "utf8");
+
+test("Pages cache-busts the portal script with its content digest", () => {
+  const digest = createHash("sha256").update(source).digest("hex").slice(0, 8);
+  assert.ok(indexSource.includes(`<script src="portal.js?v=${digest}" defer></script>`));
+});
+
 
 function clickWith(host) {
   let click;
