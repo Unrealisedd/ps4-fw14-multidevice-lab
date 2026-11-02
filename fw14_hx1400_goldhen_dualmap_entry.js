@@ -1,7 +1,7 @@
 import {
   CANONICAL_FW14_UA,
   isFw14GoldhenDirectRoute,
-} from "./fw14_goldhen_direct_contract.js?v=fw14-pages-direct-1";
+} from "./fw14_goldhen_direct_contract.js?v=fw14-pages-direct-2";
 
 const PAGE_ATTEMPT_KEY = "jb-fw14-hx1400-goldhen-dualmap-page-attempted";
 const KERNEL_ATTEMPT_KEY = "jb-fw14-hx1400-goldhen-dualmap-arm-attempted";
@@ -66,7 +66,7 @@ start.addEventListener("click", async () => {
     const int64Descriptor = Object.getOwnPropertyDescriptor(globalThis, "int64");
     let clientModule;
     try {
-      clientModule = await import("./jb_hx1400_goldhen_dualmap.js?v=fw14-pages-direct-1");
+      clientModule = await import("./jb_hx1400_goldhen_dualmap.js?v=fw14-pages-direct-2");
     } finally {
       if (int64Descriptor === undefined) {
         if (!delete globalThis.int64 || Object.prototype.hasOwnProperty.call(globalThis, "int64")) {

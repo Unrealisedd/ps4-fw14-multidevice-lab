@@ -1,4 +1,4 @@
-import { FW14_GOLDHEN_DIRECT_PROFILE } from "./fw14_goldhen_direct_contract.js?v=fw14-pages-direct-1";
+import { FW14_GOLDHEN_DIRECT_PROFILE } from "./fw14_goldhen_direct_contract.js?v=fw14-pages-direct-2";
 
 const DRAIN_COUNT = FW14_GOLDHEN_DIRECT_PROFILE.drain;
 const AUTO_RETRY_DELAY_MS = 50;

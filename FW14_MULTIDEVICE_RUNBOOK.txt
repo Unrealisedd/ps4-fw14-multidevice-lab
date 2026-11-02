@@ -14,11 +14,13 @@ The route is self-contained. GitHub Pages serves the reviewed exploit closure an
 
 PINNED GOLDHEN
 --------------
+Release: GoldHEN v2.4b18.13
 Filename: hen.bin
-Size: 562240 bytes (0x89440)
-SHA-256: 29ec095fbede651e29954de43411599093138791e62105aaee6fdced58edec06
+Size: 297496 bytes (0x48a18)
+SHA-256: 39452f5e1c305ac9efcb4745eef7958b4db8c6d85299529f08700970b009ea4d
+Head / rel32 entry: e9a6160000 / 0x16ab
 
-GoldHEN is separately authored by SiSTR0 and contributors. The project does not claim authorship or relicense it under MIT. The operator represented that this exact image may be publicly redistributed. See THIRD_PARTY_NOTICES.md.
+The supplied archive README and changelog explicitly list firmware 14.00 support. GoldHEN is separately authored by SiSTR0 and contributors. The project does not claim authorship or relicense it under MIT. The operator represented that this exact image may be publicly redistributed. See THIRD_PARTY_NOTICES.md and GOLDHEN_LICENSES.txt.
 
 PRE-FLIGHT
 ----------
@@ -34,7 +36,7 @@ ONE ATTEMPT
 2. The page must identify firmware 14.00. Any other browser identity is refused.
 3. Read the kernel-write and crash warning.
 4. Check the explicit one-attempt acknowledgement.
-5. Click "Dispatch pinned GoldHEN once" exactly once.
+5. Click "Dispatch GoldHEN v2.4b18.13 once" exactly once.
 6. Do not refresh, go back, close/reopen the page, or open a second tab.
 7. Wait for the terminal status.
 8. Record the exact status text and whether GoldHEN became visibly ready.

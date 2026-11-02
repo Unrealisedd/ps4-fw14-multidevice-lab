@@ -79,11 +79,11 @@ test("contract pins the FW14 identity, direct profile, and frozen local claim", 
     offset: 0,
   });
   assert.deepEqual(claim.hen, {
-    sha256: "29ec095fbede651e29954de43411599093138791e62105aaee6fdced58edec06",
-    size: 0x89440,
+    sha256: "39452f5e1c305ac9efcb4745eef7958b4db8c6d85299529f08700970b009ea4d",
+    size: 0x48a18,
     offset: 0x4000,
-    head: "e9a64a0000",
-    entry: 0x4aab,
+    head: "e9a6160000",
+    entry: 0x16ab,
   });
   assert.equal(claim.patch, FW14_GOLDHEN_PATCH);
   assert.equal(claim.hen, FW14_GOLDHEN_HEN);
@@ -98,17 +98,19 @@ test("HTML exposes a deliberate direct launcher under the Pages CSP", () => {
   assert.match(html, /Content-Security-Policy[^>]+default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'/i);
   assert.match(html, /GoldHEN[\s\S]*SiSTR0/i);
   assert.match(html, /href=\"https:\/\/github\.com\/GoldHEN\/GoldHEN\"/i);
+  assert.match(html, /GoldHEN v2\.4b18\.13/i);
+  assert.match(html, /href="\.\/GOLDHEN_LICENSES\.txt"/i);
   assert.match(html, /<input[^>]+id=\"accept\"[^>]+type=\"checkbox\"/i);
   assert.match(html, /<button[^>]+id=\"start\"[^>]+disabled/i);
   assert.match(html, /id=\"state\"/i);
   assert.match(html, /id=\"out\"/i);
-  assert.match(html, /<script[^>]+type=\"module\"[^>]+src=\"\.\/fw14_hx1400_goldhen_dualmap_entry\.js\?v=fw14-pages-direct-1\"/i);
+  assert.match(html, /<script[^>]+type="module"[^>]+src="\.\/fw14_hx1400_goldhen_dualmap_entry\.js\?v=fw14-pages-direct-2"/i);
   assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/i);
 });
 
 test("entry binds the click before importing and starting the client", () => {
   const clickBinding = entry.indexOf('start.addEventListener(\"click\"');
-  const clientImport = entry.indexOf('import(\"./jb_hx1400_goldhen_dualmap.js?v=fw14-pages-direct-1\")');
+  const clientImport = entry.indexOf('import("./jb_hx1400_goldhen_dualmap.js?v=fw14-pages-direct-2")');
   const clientStart = entry.indexOf("await clientModule.startHx1400GoldhenDualmapClient()");
   assert.ok(clickBinding >= 0);
   assert.ok(clientImport > clickBinding);

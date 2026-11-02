@@ -19,6 +19,7 @@ on:
       - "ps4_offsets.js"
       - "sha256.js"
       - "hen.bin"
+      - "GOLDHEN_LICENSES.txt"
       - "fw14_hx1400_goldhen_dualmap_static.json"
       - "github-pages/**"
       - "release-manifest.json"
@@ -83,6 +84,7 @@ jobs:
               "release-manifest.json": pages / "release-manifest.json",
               "fw14_hx1400_goldhen_dualmap_static.json": static_path,
               "hen.bin": Path("hen.bin"),
+              "GOLDHEN_LICENSES.txt": Path("GOLDHEN_LICENSES.txt"),
           }
           for request_path in static_manifest["files"]:
               if not isinstance(request_path, str) or not request_path.startswith("/"):
@@ -103,7 +105,7 @@ jobs:
               raise SystemExit("release manifest schema mismatch")
           hen = sources["hen.bin"].read_bytes()
           hen_digest = hashlib.sha256(hen).hexdigest()
-          if len(hen) != 0x89440 or hen_digest != manifest.get("henSha256"):
+          if len(hen) != 0x48A18 or hen_digest != manifest.get("henSha256"):
               raise SystemExit("Pages HEN pin mismatch")
 
           stage = Path("_site")

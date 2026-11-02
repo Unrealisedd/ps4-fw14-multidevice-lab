@@ -13,8 +13,8 @@ import fw14_static_graph as static_graph
 SCHEMA = "oms.fw14-goldhen-direct.release.v1"
 STATIC_SCHEMA = "oms.fw14-hx1400-goldhen-dualmap.static.v1"
 STATIC_PAGE = "/index.html"
-HEN_SHA256 = "29ec095fbede651e29954de43411599093138791e62105aaee6fdced58edec06"
-HEN_SIZE = 0x89440
+HEN_SHA256 = "39452f5e1c305ac9efcb4745eef7958b4db8c6d85299529f08700970b009ea4d"
+HEN_SIZE = 0x48A18
 HEX64 = re.compile(r"[0-9a-f]{64}\Z")
 EXCLUDED = frozenset({"release-manifest.json", "github-pages/release-manifest.json"})
 

@@ -1,5 +1,5 @@
-import { establishPrimitive } from "./core_hx1400_lowmap.js?v=hx1400-lowmap-1";
-import { installWindowP, withdrawWindowP, pairStatus } from "./mem_hx1400_lowmap.js?v=hx1400-goldhen-dualmap-1";
+import { establishPrimitive } from "./core_hx1400_lowmap.js?v=hx1400-lowmap-2";
+import { installWindowP, withdrawWindowP, pairStatus } from "./mem_hx1400_lowmap.js?v=hx1400-goldhen-dualmap-2";
 import { int64 } from "./int64.js";
 import { offsetsFor } from "./ps4_offsets.js";
 import { sha256 } from "./sha256.js";
@@ -12,7 +12,7 @@ import {
   FW14_GOLDHEN_DIRECT_PROFILE,
   buildFw14GoldhenLocalClaim,
   isFw14GoldhenDirectRoute,
-} from "./fw14_goldhen_direct_contract.js?v=fw14-pages-direct-1";
+} from "./fw14_goldhen_direct_contract.js?v=fw14-pages-direct-2";
 
 const outEl = document.getElementById("out");
 const stateEl = document.getElementById("state");
@@ -819,7 +819,7 @@ export async function startHx1400GoldhenDualmapClient() {
       const {
         finalizeHx1400GoldhenDualmapHostCleanup,
         runHx1400GoldhenDualmapStage,
-      } = await import("./hx1400_goldhen_dualmap_stage.js?v=hx1400-goldhen-dualmap-1");
+      } = await import("./hx1400_goldhen_dualmap_stage.js?v=hx1400-goldhen-dualmap-2");
       const forgetFd = (fd) => {
         const index = opened.indexOf(fd);
         if (index < 0) return false;

@@ -10,7 +10,7 @@ The active Pages route is a deliberate click-to-run firmware 14.00 launcher. It 
 - a deliberate button click;
 - successful session-latch readback before importing the exploit client.
 
-The client creates a cryptographically random local run ID and challenge. GoldHEN is fetched from the same origin only after exploit retirement and is independently checked for exact size, SHA-256, head bytes, mapping offset, and entry offset before dispatch.
+The client creates a cryptographically random local run ID and challenge. GoldHEN v2.4b18.13 is fetched from the same origin only after exploit retirement and is independently checked for exact size, SHA-256, head bytes, mapping offset, and entry offset before dispatch.
 
 ## Preserved source-derived properties
 
@@ -24,12 +24,12 @@ The client creates a cryptographically random local run ID and challenge. GoldHE
 
 ## Removed server properties
 
-The version 1.1 public route intentionally removes the version 1.0 OTP/local-server boundary. GitHub Pages cannot provide source-IP binding, a server-held intent, atomic claim consumption, durable boot tombstones, durable telemetry, server-side result validation, or abort fencing. The public UI and documentation do not claim those properties.
+The active public route retains the server-boundary removal introduced in version 1.1. GitHub Pages cannot provide source-IP binding, a server-held intent, atomic claim consumption, durable boot tombstones, durable telemetry, server-side result validation, or abort fencing. The public UI and documentation do not claim those properties.
 
 Browser session storage reduces accidental same-tab reuse but does not prove a cold reboot and cannot stop a user from opening another tab or clearing browser state.
 
 ## Publication boundary
 
-The deployment workflow verifies the complete release inventory, reviewed static dependency graph, direct-launch contract, and exact HEN digest before constructing a clean allowlisted Pages artifact. The repository and release include no private hardware-run identifiers, local evidence files, credentials, or workstation paths.
+The deployment workflow verifies the complete release inventory, reviewed static dependency graph, direct-launch contract, bundled GoldHEN dependency notices, and exact HEN digest before constructing a clean allowlisted Pages artifact. The repository and release include no private hardware-run identifiers, local evidence files, credentials, or workstation paths.
 
-This is a source-derived and deployment audit. A successful Pages deployment or desktop-browser smoke test is not evidence of a new physical-console result.
+This source/deployment audit is distinct from the operator's 2026-11-02 report that the exact local integration worked on their owned firmware 14.00 console. No terminal log or About-screen version capture was preserved.

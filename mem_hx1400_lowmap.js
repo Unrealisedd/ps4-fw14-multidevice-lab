@@ -6,7 +6,7 @@ import {
   fakeCellReleased,
   carrierHeaderCopy,
   carrierHomeVector,
-} from "./core_hx1400_lowmap.js?v=hx1400-lowmap-1";
+} from "./core_hx1400_lowmap.js?v=hx1400-lowmap-2";
 
 let carrier = null;
 let publishedPrimitive = null;

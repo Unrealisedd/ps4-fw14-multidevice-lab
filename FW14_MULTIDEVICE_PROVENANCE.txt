@@ -18,19 +18,20 @@ These values are not presented as independently derived by this publication.
 
 GOLDHEN
 -------
-GoldHEN is authored by SiSTR0 and contributors. The included hen.bin is separately authored and is not covered by this repository's MIT license. The project does not claim authorship, ownership, or upstream affiliation.
+GoldHEN v2.4b18.13 is authored by SiSTR0 and contributors. The included hen.bin is separately authored and is not covered by this repository's MIT license. The project does not claim authorship, ownership, endorsement, or upstream affiliation.
 
-The operator explicitly represented that the exact included 562240-byte image may be publicly redistributed. Its SHA-256 is:
+The operator supplied GoldHEN_v2.4b18.13.7z and explicitly represented that the exact included 297496-byte image may be publicly redistributed. The archive's bundled README and changelog identify v2.4b18.13 and explicitly list firmware 14.00 support.
 
-  29ec095fbede651e29954de43411599093138791e62105aaee6fdced58edec06
+  archive SHA-256: ec43e176f4919d5bc262579dbe9a17b4de0dbd9692a8ad0efb71b04aaf31fe73
+  hen.bin SHA-256: 39452f5e1c305ac9efcb4745eef7958b4db8c6d85299529f08700970b009ea4d
 
-See THIRD_PARTY_NOTICES.md for official project links and attribution.
+See THIRD_PARTY_NOTICES.md and GOLDHEN_LICENSES.txt for project links, attribution, and bundled dependency notices.
 
 HARDWARE CLAIM BOUNDARY
 -----------------------
-No physical-console execution result is claimed as evidence for this publication. Source inspection defines a successful browser result as dispatch reaching pthread_create; visible GoldHEN readiness would require a separate hardware observation.
+On 2026-11-02, the operator reported that this exact local v2.4b18.13 integration "works like a charm" on their owned firmware 14.00 console after the documented one-attempt test. The static route has no server-side result telemetry, and no terminal log or About-screen version capture was preserved. Treat this as an operator-reported hardware observation, not independently captured evidence.
 
-Moving the closure to GitHub Pages changes origin, routing, caching, and server-side controls. Publication and desktop-browser smoke tests do not prove execution on a physical PS4. Any console attempt must be reported as a new observation, not inferred from deployment success.
+Moving the closure to GitHub Pages changes origin, routing, and caching. A successful deployment or desktop-browser smoke test is not a substitute for the separately reported physical-console observation.
 
 AI DISCLOSURE
 -------------

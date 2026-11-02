@@ -12,11 +12,11 @@ export const FW14_GOLDHEN_PATCH = Object.freeze({
 });
 
 export const FW14_GOLDHEN_HEN = Object.freeze({
-  sha256: "29ec095fbede651e29954de43411599093138791e62105aaee6fdced58edec06",
-  size: 0x89440,
+  sha256: "39452f5e1c305ac9efcb4745eef7958b4db8c6d85299529f08700970b009ea4d",
+  size: 0x48a18,
   offset: 0x4000,
-  head: "e9a64a0000",
-  entry: 0x4aab,
+  head: "e9a6160000",
+  entry: 0x16ab,
 });
 
 export function isFw14GoldhenDirectRoute(locationLike, contractModuleUrl = import.meta.url) {
