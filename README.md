@@ -46,7 +46,7 @@ The complete repository inventory check does not require the external HEN. Stage
 python -B verify_release_manifest.py --root .
 python -B serve_fw14_hx1400_access.py check --root . --hen hen.bin --hen-sha256 29ec095fbede651e29954de43411599093138791e62105aaee6fdced58edec06
 python -B -W error::ResourceWarning -m unittest test_verify_release_manifest test_serve_fw14_hx1400_access test_serve_fw14_hx1400_goldhen_dualmap
-node --test test_hx1400_jit_dualmap_lease.mjs test_hx1400_goldhen_dualmap_owner.mjs test_hx1400_goldhen_dualmap_stage.mjs
+node --test test_github_pages_portal.mjs test_hx1400_jit_dualmap_lease.mjs test_hx1400_goldhen_dualmap_owner.mjs test_hx1400_goldhen_dualmap_stage.mjs
 ```
 
 The manifest check verifies every public file, rejects symlinks, and validates the expected external HEN metadata. After `hen.bin` is staged, the offline gateway check must report `registryMutated=false`, `serverConstructed=false`, and `bound=false`.

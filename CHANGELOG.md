@@ -9,6 +9,7 @@
 - Added durable privacy-safe gateway events, per-run diagnostics, and the local `diagnose` command.
 - Added recoverable fail-closed removal of legacy plaintext code hints.
 - Added a static GitHub Pages companion that contains no OTP handling, HEN, or exploit execution.
+- Restricted Pages transfer targets to canonical RFC 1918 IPv4 addresses and added a deployment-gating regression contract.
 - Added release integrity metadata, a non-identifying public audit summary, provenance, runbook, tests, and independent security/correctness review.
 - Kept the externally supplied GoldHEN image out of the public repository while pinning its expected size and SHA-256.
 

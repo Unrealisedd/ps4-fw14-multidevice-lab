@@ -31,6 +31,8 @@ jobs:
           persist-credentials: false
       - name: Verify complete release manifest
         run: python -B verify_release_manifest.py --root .
+      - name: Verify Pages navigation contract
+        run: node --test test_github_pages_portal.mjs
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
       - name: Build exact static-only artifact
         shell: python
